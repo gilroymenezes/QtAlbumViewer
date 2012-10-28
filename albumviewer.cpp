@@ -1,134 +1,118 @@
-#include <QApplication>
-#include <QMessageBox>
-#include <QDirIterator>
-#include <QHBoxLayout>
-#include <QMenu>
-#include <QtGui>
+#include <cmath>
 
 #include "albumviewer.h"
 
-AlbumViewer::AlbumViewer()
-{
-    createActions();
-    createMenus();
+#ifndef QT_NO_CONCURRENT
 
-    setWindowTitle(tr("Album Viewer"));
-    resize(640, 480);
+const int imageSize = 100;
+
+QImage scale (const QString &imageFileName)
+{
+    QImage image(imageFileName);
+
+    return (image.height() >= image.width()) ?
+                image.scaledToHeight(imageSize, Qt::SmoothTransformation) :
+                image.scaledToWidth(imageSize, Qt::SmoothTransformation);
 }
 
-QStringList AlbumViewer::folderValues()
+Photos::Photos(QWidget *parent) :
+    QWidget(parent)
 {
-    return filenames;
+    setWindowTitle(tr("Image loading and scaling example"));
+    resize(800, 600);
+
+    albumViewer = new QFutureWatcher<QImage>(this);
+    connect(albumViewer, SIGNAL(resultReadyAt(int)), SLOT(showImage(int)));
+    connect(albumViewer, SIGNAL(finished()), SLOT(finished()));
+
+    openButton = new QPushButton(tr("Open Images"));
+    connect(openButton, SIGNAL(clicked()), SLOT(open()));
+
+    cancelButton = new QPushButton(tr("Cancel"));
+    cancelButton->setEnabled(false);
+    connect(cancelButton, SIGNAL(clicked()), albumViewer, SLOT(cancel()));
+
+    pauseButton = new QPushButton(tr("Pause/Resume"));
+    pauseButton->setEnabled(false);
+    connect(pauseButton, SIGNAL(clicked()), albumViewer, SLOT(togglePaused()));
+
+    QHBoxLayout *buttonLayout = new QHBoxLayout();
+    buttonLayout->addWidget(openButton);
+    buttonLayout->addWidget(cancelButton);
+    buttonLayout->addWidget(pauseButton);
+    buttonLayout->addStretch();
+
+    imagesLayout = new QGridLayout();
+
+    mainLayout = new QVBoxLayout();
+    mainLayout->addLayout(buttonLayout);
+    mainLayout->addLayout(imagesLayout);
+    mainLayout->addStretch();
+    setLayout(mainLayout);
 }
 
-/**
-Use this function as an example for the SIGNAL/SLOT communication
-that is commented out from the main.cpp source.
-This is only useful for illustration of event firing mechanism in QT
-**/
-void AlbumViewer::displayFiles()
+Photos::~Photos()
 {
-    widget->setViewMode(QListView::IconMode);
-    widget->setIconSize(QSize(100,100));
-    widget->setFlow(QListView::LeftToRight);
-    widget->setSpacing(4);
+    albumViewer->cancel();
+    albumViewer->waitForFinished();
+}
 
-    for(QStringList::Iterator it = filenames.begin();
-        it != filenames.end();
-        ++it)
+void Photos::open()
+{
+    // Cancel and wait if images are already loading
+    if (albumViewer->isRunning())
     {
-        QString current = *it;
-        qDebug() << current;
-        QPixmap icon(current);
-        QListWidgetItem *item = new QListWidgetItem(current);
-        item->setIcon(icon);
-        QFont font;
-        font.setPixelSize(1);
-        item->setFont(font);
-        item->setData(Qt::UserRole, current);
-        widget->addItem(item);
+        albumViewer->cancel();
+        albumViewer->waitForFinished();
     }
 
-    QHBoxLayout *layout = new QHBoxLayout();
-    layout->addWidget(widget);
-}
-
-
-void AlbumViewer::open()
-{
-    widget->setViewMode(QListView::IconMode);
-    widget->setIconSize(QSize(100,100));
-    widget->setFlow(QListView::LeftToRight);
-    widget->setSpacing(4);
-
-    QHBoxLayout *layout = new QHBoxLayout();
-    layout->addWidget(widget);
-
-    QString dirPath = QFileDialog::getExistingDirectory(
+    // Show a file open dialog at My Pictures
+    QStringList files = QFileDialog::getOpenFileNames(
                 this,
-                tr("Select pictures folder"),
-                QDir::currentPath()
+                tr("Select photos"),
+                QDir::currentPath(), /* QDesktopServices::storageLocation(QDesktopServices::PicturesLocation),*/
+                "*.jpg *.png"
                 );
-    QDirIterator dirWalker(
-                dirPath,
-                QDir::Files | QDir::NoSymLinks | QDir::NoDotAndDotDot,
-                QDirIterator::NoIteratorFlags
-                );
-
-    while(dirWalker.hasNext())
+    if (files.count() == 0)
     {
-        dirWalker.next();
-        QStringList strList = dirWalker.fileName().split(".", QString::KeepEmptyParts);
-        if (!strList[strList.length() - 1].compare("jpg", Qt::CaseInsensitive))
+        qDebug() << "No photos found!";
+        return;
+    }
+
+    // Do a simple layout
+    qDeleteAll(labels);
+    labels.clear();
+
+    int dim = sqrt(qreal(files.count())) + 1;
+    for (int i = 0; i < dim; ++i)
+    {
+        for (int j = 0; j < dim; ++j)
         {
-            qDebug() << dirWalker.fileName();
-            //filenames.append(dirWalker.fileName());
-            filenames.append(dirWalker.filePath());
-            QPixmap icon(dirWalker.filePath());
-            QListWidgetItem *item = new QListWidgetItem(dirWalker.filePath());
-            item->setIcon(icon);
-            QFont font;
-            font.setPixelSize(1);
-            item->setFont(font);
-            item->setData(Qt::UserRole, dirWalker.fileName());
-            widget->addItem(item);
-            layout->update();
+            QLabel *imageLabel = new QLabel;
+            imageLabel->setFixedSize(imageSize, imageSize);
+            imagesLayout->addWidget(imageLabel, i, j);
+            labels.append(imageLabel);
         }
-        qApp->processEvents(QEventLoop::AllEvents);
     }
-    //emit folderOpened(folderValues());
+
+    // Use mapped to run the thread safe scale function on the files
+    albumViewer->setFuture(QtConcurrent::mapped(files, scale));
+
+    openButton->setEnabled(false);
+    cancelButton->setEnabled(true);
+    pauseButton->setEnabled(true);
 }
 
-void AlbumViewer::about()
+void Photos::showImage(int num)
 {
-    QMessageBox::about(
-                this,
-                tr("About Album Viewer"),
-                tr("Example <b>Album Viewer</b> application")
-                );
+    labels[num]->setPixmap(QPixmap::fromImage(albumViewer->resultAt(num)));
 }
 
-void AlbumViewer::createActions()
+void Photos::finished()
 {
-    widget = new QListWidget();
-
-    openAction = new QAction(tr("&Open.."), this);
-    openAction->setShortcut(tr("Ctrl+O"));
-    connect(openAction, SIGNAL(triggered()), this, SLOT(open()));
-
-    aboutAction = new QAction(tr("&About"), this);
-    connect(aboutAction, SIGNAL(triggered()), this, SLOT(about()));
+    openButton->setEnabled(true);
+    cancelButton->setEnabled(false);
+    pauseButton->setEnabled(false);
 }
 
-void AlbumViewer::createMenus()
-{
-    fileMenu = new QMenu(tr("&File"), this);
-    fileMenu->addAction(openAction);
-
-    helpMenu = new QMenu(tr("&About"), this);
-    helpMenu->addAction(aboutAction);
-
-    menuBar()->addMenu(fileMenu);
-    menuBar()->addMenu(helpMenu);
-}
-
+#endif // QT_NO_CONCURRENT

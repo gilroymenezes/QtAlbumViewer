@@ -1,44 +1,48 @@
 #ifndef ALBUMVIEWER_H
 #define ALBUMVIEWER_H
 
-#include <QMainWindow>
-#include <QLabel>
-#include <QAction>
-#include <QMenu>
-#include <QStringList>
-#include <QListWidget>
+#include <QWidget>
+#include <QtGui>
 
-class AlbumViewer : public QMainWindow
+#ifndef QT_NO_CONCURRENT
+
+class Photos : public QWidget
 {
     Q_OBJECT
 
 public:
-    AlbumViewer();
-    QStringList folderValues();
+    explicit Photos(QWidget *parent = 0);
+    ~Photos();
 
-    QListWidget *widget;
-
-signals:
-    void folderOpened(QStringList list);
-
-public slots:
-    void displayFiles();
-
-private slots:
+public Q_SLOTS:
     void open();
-    void about();
+    void showImage(int num);
+    void finished();
 
 private:
-    void createActions();
-    void createMenus();
-
-    QAction *openAction;
-    QAction *aboutAction;
-
-    QMenu *fileMenu;
-    QMenu *helpMenu;
-
-    QStringList filenames;
+    QPushButton *openButton;
+    QPushButton *cancelButton;
+    QPushButton *pauseButton;
+    QVBoxLayout *mainLayout;
+    QList<QLabel *> labels;
+    QGridLayout *imagesLayout;
+    QFutureWatcher<QImage> *albumViewer;
+    
 };
+
+#else
+
+// Dummy class for QT_NO_CONCURRENT not set when moc is run.
+class Photos : public QWidget
+{
+    Q_OBJECT
+
+public Q_SLOTS:
+    void open() {}
+    void showImage(int) {}
+    void finished() {}
+};
+
+#endif // QT_NO_CONCURRENT
 
 #endif // ALBUMVIEWER_H
