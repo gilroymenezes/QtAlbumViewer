@@ -9,10 +9,22 @@ const int imageSize = 100;
 QImage scale (const QString &imageFileName)
 {
     QImage image(imageFileName);
-    return image.scaled(QSize(imageSize, imageSize),
-                        Qt::IgnoreAspectRatio,
-                        Qt::SmoothTransformation
-                        );
+
+    else if (image.height() > image.width())
+    {
+        return image.scaledToHeight(image.height(), Qt::SmoothTransformation);
+    }
+    else if (image.height() < image.width())
+    {
+        return image.scaledToWidth(image.width(), Qt::SmoothTransformation);
+    }
+    else
+    {
+        return image.scaled(QSize(imageSize, imageSize),
+                            Qt::IgnoreAspectRatio,
+                            Qt::SmoothTransformation
+                            );
+    }
 }
 
 Photos::Photos(QWidget *parent) :
