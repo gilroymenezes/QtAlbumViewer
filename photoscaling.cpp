@@ -10,13 +10,13 @@ QImage scale (const QString &imageFileName)
 {
     QImage image(imageFileName);
 
-    else if (image.height() > image.width())
+    if (image.height() > image.width())
     {
-        return image.scaledToHeight(image.height(), Qt::SmoothTransformation);
+        return image.scaledToHeight(imageSize, Qt::SmoothTransformation);
     }
     else if (image.height() < image.width())
     {
-        return image.scaledToWidth(image.width(), Qt::SmoothTransformation);
+        return image.scaledToWidth(imageSize, Qt::SmoothTransformation);
     }
     else
     {
