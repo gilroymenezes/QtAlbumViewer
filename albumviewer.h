@@ -6,7 +6,7 @@
 
 #ifndef QT_NO_CONCURRENT
 
-class Photos : public QWidget
+class Photos : public QMainWindow
 {
     Q_OBJECT
 
@@ -26,6 +26,7 @@ private:
     QVBoxLayout *mainLayout;
     QList<QLabel *> labels;
     QGridLayout *imagesLayout;
+    QScrollArea *scrollArea;
     QFutureWatcher<QImage> *albumViewer;
     
 };

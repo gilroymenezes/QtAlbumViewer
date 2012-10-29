@@ -10,10 +10,8 @@ TARGET = QtAlbumViewer
 TEMPLATE = app
 
 
-SOURCES += main.cpp\
-    albumviewer.cpp \
-    photoscaling.cpp
+SOURCES += main.cpp \
+    albumviewer.cpp
 
 HEADERS  += \
-    albumviewer.h \
-    photoscaling.h
+    albumviewer.h

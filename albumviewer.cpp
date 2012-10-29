@@ -15,8 +15,8 @@ QImage scale (const QString &imageFileName)
                 image.scaledToWidth(imageSize, Qt::SmoothTransformation);
 }
 
-Photos::Photos(QWidget *parent) :
-    QWidget(parent)
+Photos::Photos(QWidget *parent)
+    : QMainWindow(parent)
 {
     setWindowTitle(tr("Image loading and scaling example"));
     resize(800, 600);
@@ -42,14 +42,23 @@ Photos::Photos(QWidget *parent) :
     buttonLayout->addWidget(pauseButton);
     buttonLayout->addStretch();
 
+    scrollArea = new QScrollArea;
+
     imagesLayout = new QGridLayout();
 
-    mainLayout = new QVBoxLayout();
+    mainLayout = new QVBoxLayout(scrollArea);
     mainLayout->addLayout(buttonLayout);
     mainLayout->addLayout(imagesLayout);
     mainLayout->addStretch();
-    setLayout(mainLayout);
+
+    QWidget *container = new QWidget(imagesLayout->widget());
+    scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
+    scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
+    scrollArea->setWidgetResizable(false);
+    scrollArea->setWidget(container);
+    setCentralWidget(scrollArea);
 }
+
 
 Photos::~Photos()
 {
@@ -83,13 +92,14 @@ void Photos::open()
     qDeleteAll(labels);
     labels.clear();
 
-    int dim = sqrt(qreal(files.count())) + 1;
-    for (int i = 0; i < dim; ++i)
+    //int dim = sqrt(qreal(files.count())) + 1;
+    for (int i = 0; i < files.count() / 8; ++i)
     {
-        for (int j = 0; j < dim; ++j)
+        for (int j = 0; j < 8; ++j)
         {
             QLabel *imageLabel = new QLabel;
             imageLabel->setFixedSize(imageSize, imageSize);
+            imageLabel->setAlignment(Qt::AlignLeft | Qt::AlignTop);
             imagesLayout->addWidget(imageLabel, i, j);
             labels.append(imageLabel);
         }
